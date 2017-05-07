@@ -12,15 +12,17 @@
                 -f  - load database via json formatted file
                 -c  - clear all counters
                 -e  - edit database
-                
+
     Copyright 2017 Ron Wellman
 '''
 from netmiko import ConnectHandler
+from netmiko.ssh_exception import NetMikoTimeoutException
 import sys
 import argparse
 import sqlite_query as db
 from hashlib import sha512
 import datetime
+import logger
 
 def get_config(device):
     '''
@@ -35,8 +37,14 @@ def get_config(device):
     for f in fields:
         new_device[f] = old_device.pop(f)
 
-    net_connect = ConnectHandler(**new_device)
-    return net_connect.send_command('show running-config')
+    try:
+        net_connect = ConnectHandler(**new_device)
+        return net_connect.send_command('show running-config')
+    except NetMikoTimeoutException as e:
+        logger.generate_log(e)
+        db.missed_poll(device)
+        return None
+
 
 def get_hash(config):
     '''
@@ -61,6 +69,9 @@ def main(args):
         for device in db.next_active_device():
 
                 config = get_config(device)
+                if config == None:
+                    continue
+
                 timestamp = datetime.datetime.utcnow()
                 hconfig = get_hash(config)
 

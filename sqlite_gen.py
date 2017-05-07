@@ -1,14 +1,5 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-
-
-from sqlalchemy import Table, Column, ForeignKey, desc
-from sqlalchemy import Text, Integer, String, Boolean, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine
-import datetime
-
 '''
     sqlite_gen.py -> Utilize sqlalchemy to build the sqlite db file
 
@@ -40,6 +31,14 @@ import datetime
 
     Copyright 2017 Ron Wellman
 '''
+
+from sqlalchemy import Table, Column, ForeignKey, desc
+from sqlalchemy import Text, Integer, String, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy import create_engine
+import datetime
+
 Base = declarative_base()
 
 class Device(Base):

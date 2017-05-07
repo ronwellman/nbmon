@@ -1,14 +1,15 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-
-from sqlalchemy import create_engine, text, desc
-from sqlalchemy.orm import sessionmaker
-from sqlite_gen import Base, Device, Config
 '''
     sqlite_query.py -> retreaves data from the device and device type tables
 
     Copyright 2017 Ron Wellman
 '''
+
+from sqlalchemy import create_engine, text, desc
+from sqlalchemy.orm import sessionmaker
+from sqlite_gen import Base, Device, Config
+
 def get_session(database='sqlite:///nbmon.db'):
     '''
         returns a session object to the database (defaulted to sqlite:///nbmon.db)
@@ -40,6 +41,7 @@ def insert_config(device, hconf, conf, ts):
     #uses the relationship between devices and configs to insert a new config for that object
     device.configs.append(Config(hconfig=hconf, config=conf, timestamp=ts))
     device.last_seen = ts
+    device.config_changes += 1
     session.commit()
 
 def compare_config(device, hconfig):
@@ -52,6 +54,13 @@ def compare_config(device, hconfig):
             return True
     else:
         return False
+
+def missed_poll(device):
+    '''
+        updates the missed_polls counter
+    '''
+    device.missed_polls += 1
+    session.commit()
 
 #connects to the database and renders a session object for manipulation
 session = get_session()
