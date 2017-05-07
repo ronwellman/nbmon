@@ -12,12 +12,15 @@
                 -f  - load database via json formatted file
                 -c  - clear all counters
                 -e  - edit database
+                
+    Copyright 2017 Ron Wellman
 '''
 from netmiko import ConnectHandler
 import sys
 import argparse
-from sqlite_query import next_active_device
+import sqlite_query as db
 from hashlib import sha512
+import datetime
 
 def get_config(device):
     '''
@@ -42,15 +45,32 @@ def get_hash(config):
     return sha512(config).hexdigest()
 
 def main(args):
+    '''
+        nbmon perations:
 
+        check args
+            -d
+                loop through devices
+                    get config
+                    hash config
+                    compare hash
+                    record new config if hashes do not match
+    '''
     #daemonize
     if args.daemon:
-        for device in next_active_device():
+        for device in db.next_active_device():
 
                 config = get_config(device)
+                timestamp = datetime.datetime.utcnow()
                 hconfig = get_hash(config)
-                print config
 
+                #Compare newly hashed config to the last one entered into the db
+                if not db.compare_config(device,hconfig):
+                    print 'CHANGE TO "%s": Inserting new config into DB' % device.description
+                    db.insert_config(device, hconfig, config, timestamp)
+
+                for config in db.next_config(device):
+                    print config.config_id, config.timestamp, config.hconfig
 
     elif args.file:
         print args.file
@@ -60,6 +80,8 @@ def main(args):
 
     elif args.edit:
         print args.edit
+    else:
+        print 'Missing arguments: python nbmon.py --help'
 
     return(None)
 
