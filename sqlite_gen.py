@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 
-from sqlalchemy import Table, Column, ForeignKey
+from sqlalchemy import Table, Column, ForeignKey, desc
 from sqlalchemy import Text, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -30,12 +30,15 @@ import datetime
         config
             config_id   - Integer   - pk
             device_id   - Integer   - fk
-            time_stamp  - DateTime
-            hash        - String
+            timestamp   - DateTime
+            hconfig     - String
             config_id   - Text
 
-    Copyright 2017 Ron Wellman
+    Relationships:
+        Device.configs  -> Config
+        Config.device   -> Device
 
+    Copyright 2017 Ron Wellman
 '''
 Base = declarative_base()
 
@@ -58,10 +61,12 @@ class Config(Base):
     __tablename__ = 'config'
     config_id = Column(Integer, primary_key=True)
     device_id = Column(Integer, ForeignKey('device.device_id'))
-    time_stamp = Column(DateTime, default=datetime.datetime.utcnow)
-    config_hash = Column(String(128), nullable=False)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    hconfig = Column(String(128), nullable=False)
     config = Column(Text, nullable=False)
-    device = relationship(Device)
+    device = relationship(Device, back_populates="configs")
+
+Device.configs = relationship(Config, order_by=desc(Config.timestamp), back_populates="device")
 
 engine = create_engine("sqlite:///nbmon.db")
 Base.metadata.create_all(engine)
