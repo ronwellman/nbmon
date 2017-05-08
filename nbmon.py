@@ -107,7 +107,9 @@ def main(args):
         print args.file
 
     elif args.clear:
-        print args.clear
+        logger.generate_log('NBMON started - CLEAR', 'INFO')
+        for device in db.next_missed_device():
+            db.clear_counters(device)
 
     elif args.edit:
         print args.edit
