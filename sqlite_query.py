@@ -38,9 +38,8 @@ def next_missed_device():
     '''
         generator that returns devices with missed_polls
     '''
-    for device in session.query(Device).filter(Device.actively_poll == True and \
-        ((Device.missed_polls != 0) or (Device.config_changes != 0))):
-
+    for device in session.query(Device).filter(Device.actively_poll == True).filter(\
+    (Device.missed_polls != 0) or (Device.config_changes != 0)):
         yield device
 
 def insert_config(device, hconf, conf, ts):
@@ -77,6 +76,14 @@ def missed_poll(device):
         updates the missed_polls counter
     '''
     device.missed_polls += 1
+    session.commit()
+
+def clear_counters(device):
+    '''
+        zeroes out the counters for the device
+    '''
+    device.missed_polls = 0
+    device.config_changes = 0
     session.commit()
 
 #connects to the database and renders a session object for manipulation
