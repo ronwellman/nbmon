@@ -11,9 +11,9 @@
 '''
 import datetime
 
-def generate_log(msg):
+def generate_log(msg, severity):
     '''
         creates or appends a log file entries
     '''
     with open('nbmon.log','a') as f:
-        f.write('{:%Y-%m-%d %H:%M:%S} UTC - {}\n'.format(datetime.datetime.utcnow(), msg))
+        f.write('{:%Y-%m-%d %H:%M:%S} UTC - {} - {}\n'.format(datetime.datetime.utcnow(), severity.upper(), msg))

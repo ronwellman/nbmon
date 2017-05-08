@@ -34,9 +34,19 @@ def next_config(device):
     for config in device.configs:
         yield config
 
+def next_missed_device():
+    '''
+        generator that returns devices with missed_polls
+    '''
+    for device in session.query(Device).filter(Device.actively_poll == True and \
+        ((Device.missed_polls != 0) or (Device.config_changes != 0))):
+
+        yield device
+
 def insert_config(device, hconf, conf, ts):
     '''
-        inserts a new config into the config table
+        inserts a new config into the config table, update the config_changes counter,
+        and update the last_seen timestamp
     '''
     #uses the relationship between devices and configs to insert a new config for that object
     device.configs.append(Config(hconfig=hconf, config=conf, timestamp=ts))
@@ -54,6 +64,13 @@ def compare_config(device, hconfig):
             return True
     else:
         return False
+
+def update_timestamp(device, ts):
+    '''
+        updates the last_seen timestamp of a device
+    '''
+    device.last_seen = ts
+    session.commit()
 
 def missed_poll(device):
     '''
