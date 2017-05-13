@@ -24,6 +24,7 @@ import sqlite_query as db
 from hashlib import sha512
 import datetime
 import logger
+import click
 
 def get_config(device):
     '''
@@ -67,21 +68,22 @@ def display_status():
         print('{:>6}  {:<15}  {:<25}  {:%Y-%m-%d %H:%M:%S} UTC  {:>6}  {:>7}'.format(\
         device.device_id, device.ip, description, device.last_seen, device.missed_polls, device.config_changes))
 
-def main(args):
+@click.command()
+@click.option('--daemon', '-d', help='launch nbmon as a daemon', is_flag=True)
+@click.option('--status', '-s', help='display status of active devices', is_flag=True)
+@click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('w'))
+@click.option('--clear', '-c', help='clear counters', is_flag=True)
+@click.option('--edit', '-e', help='edit the database', is_flag=True)
+@click.option('--log-file', '-l', help='use a custom log file',type=click.File('w'), default=sys.stderr)
+@click.option('--verbose', '-v', help='enable verbose logging', is_flag=True)
+def main(daemon, status, inputfile, clear, edit, log_file, verbose):
     '''
-        nbmon perations:
+        nbmon - Network Baseline Monitor
 
-        check args
-            -d
-                loop through devices
-                    get config
-                    hash config
-                    compare hash
-                    record new config if hashes do not match
-                    display status
+            Monitor your network devices looking for changes in your configurations
     '''
     #daemonize
-    if args.daemon:
+    if daemon:
         logger.generate_log('NBMON started - DAEMON', 'INFO')
         for device in db.next_active_device():
 
@@ -100,35 +102,26 @@ def main(args):
                 else:
                     db.update_timestamp(device, timestamp)
 
-    elif args.status:
+    elif status:
         logger.generate_log('NBMON started - STATUS', 'INFO')
         display_status()
     elif args.file:
         print args.file
 
-    elif args.clear:
+    elif clear:
         logger.generate_log('NBMON started - CLEAR', 'INFO')
         for device in db.next_missed_device():
             db.clear_counters(device)
 
-    elif args.edit:
+    elif edit:
         print args.edit
     else:
         print 'At least one argument required: python nbmon.py --help'
 
-    return(None)
+    return(0)
 
 if __name__ == '__main__':
-    #help menu and parameters
-    parser = argparse.ArgumentParser(description='''nbmon - Network Baseline Monitor -
-    Periodically monitor your network devices looking for changes in your network devices.''')
-    parser.add_argument('-d','--daemon',help='launch nbmon as a daemon', action='store_true')
-    parser.add_argument('-s','--status',help='display status of active devices', action='store_true')
-    parser.add_argument('-f','--file', help='load database via json formatted file')
-    parser.add_argument('-c','--clear', help='clear counters', action='store_true')
-    parser.add_argument('-e','--edit', help='edit the database', action='store_true')
-    args = parser.parse_args()
 
-    exit_code = main(args)
+    exit_code = main()
     logger.generate_log('NBMON exited with code {}'.format(exit_code), 'INFO')
     sys.exit(exit_code)
