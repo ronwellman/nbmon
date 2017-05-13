@@ -26,7 +26,7 @@ import datetime
 import logger
 import click
 
-def get_config(device):
+def get_config(device, logfile):
     '''
         Connects to a device and returns its config
     '''
@@ -43,7 +43,7 @@ def get_config(device):
         net_connect = ConnectHandler(**new_device)
         return net_connect.send_command('show running-config')
     except NetMikoTimeoutException as e:
-        logger.generate_log(e, 'WARNING')
+        logger.generate_log(logfile, e, 'WARNING')
         db.missed_poll(device)
         return None
 
@@ -74,20 +74,23 @@ def display_status():
 @click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('w'))
 @click.option('--clear', '-c', help='clear counters', is_flag=True)
 @click.option('--edit', '-e', help='edit the database', is_flag=True)
-@click.option('--log-file', '-l', help='use a custom log file',type=click.File('w'), default=sys.stderr)
+@click.option('--logfile', '-l', help='use a custom log file',type=click.File('w'), default=sys.stdout)
 @click.option('--verbose', '-v', help='enable verbose logging', is_flag=True)
-def main(daemon, status, inputfile, clear, edit, log_file, verbose):
+def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
     '''
         nbmon - Network Baseline Monitor
 
             Monitor your network devices looking for changes in your configurations
     '''
+    exit_code = 0
+
     #daemonize
     if daemon:
-        logger.generate_log('NBMON started - DAEMON', 'INFO')
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - DAEMON', 'INFO')
         for device in db.next_active_device():
 
-                config = get_config(device)
+                config = get_config(device, logfile)
                 if config == None:
                     continue
 
@@ -98,18 +101,20 @@ def main(daemon, status, inputfile, clear, edit, log_file, verbose):
                 if not db.compare_config(device,hconfig):
                     print 'CHANGE TO "%s": Inserting new config into DB' % device.description
                     db.insert_config(device, hconfig, config, timestamp)
-                    logger.generate_log('{} configuration change'.format(device.ip), 'WARNING')
+                    logger.generate_log(logfile, '{} configuration change'.format(device.ip), 'WARNING')
                 else:
                     db.update_timestamp(device, timestamp)
 
     elif status:
-        logger.generate_log('NBMON started - STATUS', 'INFO')
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - STATUS', 'INFO')
         display_status()
     elif args.file:
         print args.file
 
     elif clear:
-        logger.generate_log('NBMON started - CLEAR', 'INFO')
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - CLEAR', 'INFO')
         for device in db.next_missed_device():
             db.clear_counters(device)
 
@@ -118,10 +123,12 @@ def main(daemon, status, inputfile, clear, edit, log_file, verbose):
     else:
         print 'At least one argument required: python nbmon.py --help'
 
-    return(0)
+    if verbose:
+        logger.generate_log(logfile, 'NBMON exited with code {}'.format(exit_code), 'INFO')
+
+    return(exit_code)
 
 if __name__ == '__main__':
 
-    exit_code = main()
-    logger.generate_log('NBMON exited with code {}'.format(exit_code), 'INFO')
+    exit_code = cli()
     sys.exit(exit_code)
