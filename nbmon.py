@@ -19,19 +19,20 @@
 from netmiko import ConnectHandler
 from netmiko.ssh_exception import NetMikoTimeoutException
 import sys
-import argparse
 import sqlite_query as db
 from hashlib import sha512
 import datetime
 import logger
 import click
+from sqlite_fill import load_database
 
 def get_config(device, logfile):
     '''
         Connects to a device and returns its config
     '''
-    #device contains extra fields that cause issues with netmiko
-    fields = ('device_type','ip','username', 'password','port','secret')
+    if device.device_type == 'cisco_ios':
+        #device contains extra fields that cause issues with netmiko
+        fields = ('device_type','ip','username', 'password','port','secret')
     new_device = {}
     old_device = device.__dict__
 
@@ -64,14 +65,19 @@ def display_status():
             description = device.description[:26]
         else:
             description = device.description
-
-        print('{:>6}  {:<15}  {:<25}  {:%Y-%m-%d %H:%M:%S} UTC  {:>6}  {:>7}'.format(\
-        device.device_id, device.ip, description, device.last_seen, device.missed_polls, device.config_changes))
+        if device.last_seen:
+            print('{:>6}  {:<15}  {:<25}  {:%Y-%m-%d %H:%M:%S} UTC  {:>6}  {:>7}'.format(\
+                device.device_id, device.ip, description, device.last_seen,
+                device.missed_polls, device.config_changes))
+        else:
+            print('{:>6}  {:<15}  {:<25}  {:^23}  {:>6}  {:>7}'.format(\
+                device.device_id, device.ip, description, 'NEVER',
+                device.missed_polls, device.config_changes))
 
 @click.command()
 @click.option('--daemon', '-d', help='launch nbmon as a daemon', is_flag=True)
 @click.option('--status', '-s', help='display status of active devices', is_flag=True)
-@click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('w'))
+@click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('r'))
 @click.option('--clear', '-c', help='clear counters', is_flag=True)
 @click.option('--edit', '-e', help='edit the database', is_flag=True)
 @click.option('--logfile', '-l', help='use a custom log file',type=click.File('w'), default=sys.stdout)
@@ -109,9 +115,10 @@ def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
         if verbose:
             logger.generate_log(logfile, 'NBMON started - STATUS', 'INFO')
         display_status()
-    elif args.file:
-        print args.file
 
+    elif inputfile:
+        load_database(inputfile)
+        display_status()
     elif clear:
         if verbose:
             logger.generate_log(logfile, 'NBMON started - CLEAR', 'INFO')
@@ -131,4 +138,7 @@ def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
 if __name__ == '__main__':
 
     exit_code = cli()
-    sys.exit(exit_code)
+    if exit_code:
+        sys.exit(exit_code)
+    else:
+        sys.exit(1)

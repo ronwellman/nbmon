@@ -38,7 +38,7 @@ def next_missed_device():
     '''
         generator that returns devices with missed_polls
     '''
-    for device in session.query(Device).filter(Device.actively_poll == True).order_by('missed_polls','config_changes'):
+    for device in session.query(Device).filter(Device.actively_poll == True).order_by(Device.missed_polls.desc(),Device.config_changes.desc()):
         yield device
 
 def insert_config(device, hconf, conf, ts):
