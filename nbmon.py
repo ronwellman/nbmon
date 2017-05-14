@@ -19,18 +19,21 @@
 from netmiko import ConnectHandler
 from netmiko.ssh_exception import NetMikoTimeoutException
 import sys
-import argparse
 import sqlite_query as db
 from hashlib import sha512
 import datetime
 import logger
+import click
+from sqlite_fill import load_database
 
-def get_config(device):
+def get_config(device, logfile):
     '''
         Connects to a device and returns its config
     '''
-    #device contains extra fields that cause issues with netmiko
-    fields = ('device_type','ip','username', 'password','port','secret')
+    if device.device_type == 'cisco_ios':
+        #device contains extra fields that cause issues with netmiko
+        fields = ('device_type','ip','username', 'password','port','secret')
+
     new_device = {}
     old_device = device.__dict__
 
@@ -42,7 +45,7 @@ def get_config(device):
         net_connect = ConnectHandler(**new_device)
         return net_connect.send_command('show running-config')
     except NetMikoTimeoutException as e:
-        logger.generate_log(e, 'WARNING')
+        logger.generate_log(logfile, e, 'WARNING')
         db.missed_poll(device)
         return None
 
@@ -63,29 +66,38 @@ def display_status():
             description = device.description[:26]
         else:
             description = device.description
+        if device.last_seen:
+            print('{:>6}  {:<15}  {:<25}  {:%Y-%m-%d %H:%M:%S} UTC  {:>6}  {:>7}'.format(\
+                device.device_id, device.ip, description, device.last_seen,
+                device.missed_polls, device.config_changes))
+        else:
+            print('{:>6}  {:<15}  {:<25}  {:^23}  {:>6}  {:>7}'.format(\
+                device.device_id, device.ip, description, 'NEVER',
+                device.missed_polls, device.config_changes))
 
-        print('{:>6}  {:<15}  {:<25}  {:%Y-%m-%d %H:%M:%S} UTC  {:>6}  {:>7}'.format(\
-        device.device_id, device.ip, description, device.last_seen, device.missed_polls, device.config_changes))
-
-def main(args):
+@click.command()
+@click.option('--daemon', '-d', help='launch nbmon as a daemon', is_flag=True)
+@click.option('--status', '-s', help='display status of active devices', is_flag=True)
+@click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('r'))
+@click.option('--clear', '-c', help='clear counters', is_flag=True)
+@click.option('--edit', '-e', help='edit the database', is_flag=True)
+@click.option('--logfile', '-l', help='use a custom log file',type=click.File('w'), default=sys.stdout)
+@click.option('--verbose', '-v', help='enable verbose logging', is_flag=True)
+def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
     '''
-        nbmon perations:
+        nbmon - Network Baseline Monitor
 
-        check args
-            -d
-                loop through devices
-                    get config
-                    hash config
-                    compare hash
-                    record new config if hashes do not match
-                    display status
+            Monitor your network devices looking for changes in your configurations
     '''
+    exit_code = 0
+
     #daemonize
-    if args.daemon:
-        logger.generate_log('NBMON started - DAEMON', 'INFO')
+    if daemon:
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - DAEMON', 'INFO')
         for device in db.next_active_device():
 
-                config = get_config(device)
+                config = get_config(device, logfile)
                 if config == None:
                     continue
 
@@ -96,39 +108,38 @@ def main(args):
                 if not db.compare_config(device,hconfig):
                     print 'CHANGE TO "%s": Inserting new config into DB' % device.description
                     db.insert_config(device, hconfig, config, timestamp)
-                    logger.generate_log('{} configuration change'.format(device.ip), 'WARNING')
+                    logger.generate_log(logfile, '{} configuration change'.format(device.ip), 'WARNING')
                 else:
                     db.update_timestamp(device, timestamp)
 
-    elif args.status:
-        logger.generate_log('NBMON started - STATUS', 'INFO')
+    elif status:
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - STATUS', 'INFO')
         display_status()
-    elif args.file:
-        print args.file
 
-    elif args.clear:
-        logger.generate_log('NBMON started - CLEAR', 'INFO')
+    elif inputfile:
+        load_database(inputfile)
+        display_status()
+    elif clear:
+        if verbose:
+            logger.generate_log(logfile, 'NBMON started - CLEAR', 'INFO')
         for device in db.next_missed_device():
             db.clear_counters(device)
 
-    elif args.edit:
+    elif edit:
         print args.edit
     else:
         print 'At least one argument required: python nbmon.py --help'
 
-    return(None)
+    if verbose:
+        logger.generate_log(logfile, 'NBMON exited with code {}'.format(exit_code), 'INFO')
+
+    return(exit_code)
 
 if __name__ == '__main__':
-    #help menu and parameters
-    parser = argparse.ArgumentParser(description='''nbmon - Network Baseline Monitor -
-    Periodically monitor your network devices looking for changes in your network devices.''')
-    parser.add_argument('-d','--daemon',help='launch nbmon as a daemon', action='store_true')
-    parser.add_argument('-s','--status',help='display status of active devices', action='store_true')
-    parser.add_argument('-f','--file', help='load database via json formatted file')
-    parser.add_argument('-c','--clear', help='clear counters', action='store_true')
-    parser.add_argument('-e','--edit', help='edit the database', action='store_true')
-    args = parser.parse_args()
 
-    exit_code = main(args)
-    logger.generate_log('NBMON exited with code {}'.format(exit_code), 'INFO')
-    sys.exit(exit_code)
+    exit_code = cli()
+    if exit_code:
+        sys.exit(exit_code)
+    else:
+        sys.exit(1)
