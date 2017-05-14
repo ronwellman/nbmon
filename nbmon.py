@@ -33,6 +33,7 @@ def get_config(device, logfile):
     if device.device_type == 'cisco_ios':
         #device contains extra fields that cause issues with netmiko
         fields = ('device_type','ip','username', 'password','port','secret')
+
     new_device = {}
     old_device = device.__dict__
 
