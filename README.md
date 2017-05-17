@@ -1,7 +1,7 @@
 NBMON
 =====
 
-Network Baseline Monitor - v0.3a
+Network Baseline Monitor - v0.4a
 
 Python 2.7
 
