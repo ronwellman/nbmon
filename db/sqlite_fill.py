@@ -3,7 +3,7 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlite_gen import Base, Device, Config
+from db.sqlite_gen import Base, Device, Config
 import json
 '''
     sqlite_fill.py -> inserts devices into the database
