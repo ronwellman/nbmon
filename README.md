@@ -40,10 +40,10 @@ Python 2.7
 	- git clone https://github.com/ronwellman/nbmon.git
 1. pip install
 	- pip install -r requirements.txt
-1. build database
-	- python sqlite_gen.py
-1. insert device data
-	- python sqlite_fill.py
+1. build and database
+	- python nbmon.py --inputfile sample_file.json
 1. run nbmon
-	- python nbmon.py -d
+	- python nbmon.py --daemon
+1. run nbmon with logging
+	- python nbmon.py --daemon --logfile nbmon.log --verbose
 
