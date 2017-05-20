@@ -51,7 +51,7 @@ def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
                     continue
 
                 timestamp = datetime.datetime.utcnow()
-                hconfig = get_hash(config)
+                hconfig = generate_hash(config)
 
                 #Compare newly hashed config to the last one entered into the db
                 if not db.compare_config(device,hconfig):
@@ -60,23 +60,30 @@ def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
                     generate_log(logfile, '{} configuration change'.format(device.ip), 'WARNING')
                 else:
                     db.update_timestamp(device, timestamp)
-
+    #display status
     elif status:
         if verbose:
             generate_log(logfile, 'NBMON started - STATUS', 'INFO')
         display_status()
 
+    #input devices using a json formated file
     elif inputfile:
         load_database(inputfile)
         display_status()
+
+    #clear all the counters
     elif clear:
         if verbose:
             generate_log(logfile, 'NBMON started - CLEAR', 'INFO')
-        for device in db.next_missed_device():
-            db.clear_counters(device)
+        clear_counters()
 
+    #edit the database
     elif edit:
-        print args.edit
+        if verbose:
+            generate_log(logfile, 'NBMON started - EDIT', 'INFO')
+        edit_device(logfile, verbose)
+
+    #no arguements
     else:
         print 'At least one argument required: python nbmon.py --help'
 
