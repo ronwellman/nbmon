@@ -1,7 +1,8 @@
 NBMON
 =====
 
-Network Baseline Monitor - v0.4a
+Network Baseline Monitor - v0.5a
+=======
 
 Python 2.7
 
@@ -15,7 +16,7 @@ Python 2.7
 - enum34==1.1.6
 - idna==2.5
 - ipaddress==1.0.18
-- netmiko==1.3.0
+- netmiko==1.4.0
 - packaging==16.8
 - paramiko==2.1.2
 - pkg-resources==0.0.0

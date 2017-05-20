@@ -1,15 +1,15 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
-
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from db.sqlite_gen import Base, Device, Config
-import json
 '''
     sqlite_fill.py -> inserts devices into the database
 
     Copyright 2017 Ron Wellman
 '''
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from db.sqlite_gen import Base, Device, Config
+import json
 
 def load_database(inputfile):
     '''

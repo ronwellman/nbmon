@@ -1,12 +1,12 @@
 #!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 '''
-    sqlite_query.py -> retreaves data from the device and device type tables
+    sqlite_query.py -> interacts with the database
 
     Copyright 2017 Ron Wellman
 '''
 
-from sqlalchemy import create_engine, text, desc
+from sqlalchemy import create_engine, text, desc, delete
 from sqlalchemy.orm import sessionmaker
 from sqlite_gen import Base, Device, Config
 
@@ -19,6 +19,13 @@ def get_session(database='sqlite:///nbmon.db'):
     DBSession = sessionmaker()
     DBSession.bind = engine
     return DBSession()
+
+def next_device():
+    '''
+        generator that returns all devices in the database
+    '''
+    for device in session.query(Device):
+        yield device
 
 def next_active_device():
     '''
@@ -70,6 +77,33 @@ def update_timestamp(device, ts):
     device.last_seen = ts
     session.commit()
 
+def update_device(device, field, value):
+    '''
+        updates a specific field of a device
+    '''
+
+    if field == 'device_type':
+        device.device_type = value
+    elif field == 'ip':
+        device.ip = value
+    elif field == 'port':
+        device.port = value
+    elif field == 'description':
+        device.description = value
+    elif field == 'username':
+        device.username = value
+    elif field == 'password':
+        device.password = value
+    elif field == 'secret':
+        device.secret = value
+    elif field == 'actively_poll':
+        device.actively_poll = value
+    elif field == 'missed_polls':
+        device.missed_polls = value
+    elif field == 'config_changes':
+        device.config_changes = value
+    session.commit()
+
 def missed_poll(device):
     '''
         updates the missed_polls counter
@@ -83,6 +117,13 @@ def clear_counters(device):
     '''
     device.missed_polls = 0
     device.config_changes = 0
+    session.commit()
+
+def delete_device(device):
+    '''
+        remove a device from the database
+    '''
+    session.delete(device)
     session.commit()
 
 #connects to the database and renders a session object for manipulation
