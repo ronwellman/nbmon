@@ -70,6 +70,13 @@ def compare_config(device, hconfig):
     else:
         return False
 
+def delete_config(config):
+    '''
+        deletes a config from the database
+    '''
+    session.delete(config)
+    session.commit()
+    
 def update_timestamp(device, ts):
     '''
         updates the last_seen timestamp of a device
