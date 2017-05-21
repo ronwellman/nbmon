@@ -56,7 +56,8 @@ def insert_config(device, hconf, conf, ts):
     #uses the relationship between devices and configs to insert a new config for that object
     device.configs.append(Config(hconfig=hconf, config=conf, timestamp=ts))
     device.last_seen = ts
-    device.config_changes += 1
+    if len(device.configs) > 1:
+        device.config_changes += 1
     session.commit()
 
 def compare_config(device, hconfig):
@@ -76,7 +77,7 @@ def delete_config(config):
     '''
     session.delete(config)
     session.commit()
-    
+
 def update_timestamp(device, ts):
     '''
         updates the last_seen timestamp of a device

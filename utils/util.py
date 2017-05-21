@@ -98,7 +98,7 @@ def edit_device(logfile, verbose):
             elif choice == 'Q':
                 return None
             elif choice == 'V' or choice == '13':
-                print_config_menu(device)
+                validate_config(device, logfile, verbose)
             elif choice == 'D':
                 if verbose:
                     msg = 'Device {} deleted.'.format(device.device_id)
@@ -487,9 +487,9 @@ def validate_config_changes(device):
             print('\nInvalid Entry\n')
             click.pause()
 
-def print_config_menu(device):
+def validate_config(device, logfile, verbose):
     '''
-        builds a menu for displaying and deleting configs for a device
+        builds a menu for displaying, deleting, and comparing configs for a device
     '''
     counter = 0
 
@@ -527,6 +527,9 @@ def print_config_menu(device):
             else:
                 counter = total - 1
         elif choice == 'D':
+            if verbose:
+                msg = 'Config {} deleted from device {}.'.format(counter,device.device_id)
+                generate_log(logfile, msg, 'INFO')
             db.delete_config(device.configs[counter])
             if counter > 0:
                 counter -= 1
