@@ -8,6 +8,7 @@
 from netmiko import ConnectHandler
 from netmiko.ssh_exception import NetMikoTimeoutException
 from hashlib import sha512
+from difflib import unified_diff as udiff
 import datetime
 import click
 import ipaddress
@@ -488,7 +489,7 @@ def validate_config_changes(device):
 
 def print_config_menu(device):
     '''
-        builds a menu for showing the number of configs a device has
+        builds a menu for displaying and deleting configs for a device
     '''
     counter = 0
 
@@ -506,7 +507,7 @@ def print_config_menu(device):
             click.echo(click.style(' 3 - Timestamp       :', fg='red'))
         print('==============================================')
         if total > 0:
-            print('<V> - View Config, <N> - Next, <P> - Previous, <D> - Delete Config, <Q> - Quit')
+            print('<V> - View Config, <C> - Compare Latest Configs, <N> - Next, <P> - Previous, <D> - Delete Config, <Q> - Quit')
             print('')
         else:
             print('\nThere are no remaining configs.\n')
@@ -529,9 +530,19 @@ def print_config_menu(device):
             db.delete_config(device.configs[counter])
             if counter > 0:
                 counter -= 1
-
         elif choice == 'V' or choice == '2':
             click.echo_via_pager(device.configs[counter].config)
+        elif choice == 'C':
+            if total >= 2:
+                difference = []
+                for line in udiff(device.configs[0].config.split('\n'), device.configs[1].config.split('\n'),\
+                        fromfile='{:%Y-%m-%d %H:%M:%S} UTC'.format(device.configs[0].timestamp),\
+                        tofile='{:%Y-%m-%d %H:%M:%S} UTC'.format(device.configs[1].timestamp)):
+                    difference.append(line)
+                click.echo_via_pager('\n'.join(difference))
+            else:
+                print('\nNot enough configs to compare.\n')
+                click.pause()
         else:
             print('\nInvalid Entry\n')
             click.pause()
