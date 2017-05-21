@@ -8,6 +8,7 @@
 from netmiko import ConnectHandler
 from netmiko.ssh_exception import NetMikoTimeoutException
 from hashlib import sha512
+from difflib import unified_diff as udiff
 import datetime
 import click
 import ipaddress
@@ -87,25 +88,17 @@ def edit_device(logfile, verbose):
     for device in db.next_device():
         #outer loop to keep same device loaded in the menu
         while True:
-            print_menu(device)
+            print_edit_menu(device)
 
-            #inner loop to keep prompting the user for input
-            while True:
-                choice = click.prompt('What would you like to do')
-                choice = choice.upper()
-                if choice in ('N','D','Q','2','3','4','5','6','7','8','9','10','11','12'):
-                    #inner break
-                    break
-                else:
-                    print('\nInvalid Entry\n')
-                    click.pause()
-                    print_menu(device)
+            choice = click.prompt('What would you like to do').upper()
 
             if choice == 'N':
                 #outer break
                 break
             elif choice == 'Q':
                 return None
+            elif choice == 'V' or choice == '13':
+                validate_config(device, logfile, verbose)
             elif choice == 'D':
                 if verbose:
                     msg = 'Device {} deleted.'.format(device.device_id)
@@ -189,11 +182,17 @@ def edit_device(logfile, verbose):
                         msg = 'Device {} config_changes cleared.'.format(device.device_id)
                         generate_log(logfile, msg, 'INFO')
                     db.update_device(device, edit[choice], 0)
+            else:
+                print('\nInvalid Entry\n')
+                click.pause()
 
-def print_menu(device):
+
+def print_edit_menu(device):
     '''
         builds a menu for editing a device
     '''
+    total = len(device.configs)
+
     click.clear()
     print('[DEVICE]')
     print('==============================================')
@@ -206,13 +205,14 @@ def print_menu(device):
     click.echo(click.style(' 7 - Password       : {}'.format('**********'), fg='green'))
     click.echo(click.style(' 8 - Secret         : {}'.format('**********'), fg='green'))
     click.echo(click.style(' 9 - Actively Poll  : {}'.format(device.actively_poll), fg='green'))
-    click.echo(click.style('10 - Last Seen      : {}'.format(device.last_seen), fg='green'))
+    click.echo(click.style('10 - Last Seen      : {:%Y-%m-%d %H:%M:%S} UTC'.format(device.last_seen), fg='green'))
     click.echo(click.style('11 - Missed Polls   : {}'.format(device.missed_polls), fg='green'))
     click.echo(click.style('12 - Config Changes : {}'.format(device.config_changes), fg='green'))
+    click.echo(click.style('13 - Num of Configs : {}'.format(total), fg='green'))
     print('==============================================')
     click.echo('Entries in ' + click.style('Red',fg='red') + ' cannot be changed')
     print('')
-    print('<#> - Edit Value, <N> - Next, <D> - Delete, <Q> - Quit')
+    print('<#> - Edit Value, <N> - Next, <V> - View Configs, <D> - Delete, <Q> - Quit')
     print('')
 
 def validate_device_type(device):
@@ -483,6 +483,69 @@ def validate_config_changes(device):
             return None
         elif choice == 'C':
             return choice
+        else:
+            print('\nInvalid Entry\n')
+            click.pause()
+
+def validate_config(device, logfile, verbose):
+    '''
+        builds a menu for displaying, deleting, and comparing configs for a device
+    '''
+    counter = 0
+
+    while True:
+        total = (len(device.configs))
+        click.clear()
+        print('[DEVICE > CONFIGS]')
+        print('==============================================')
+        click.echo(click.style(' 1 - Device ID       : {}'.format(device.device_id), fg='red'))
+        if total > 0:
+            click.echo(click.style(' 2 - Config          : {} of {}'.format(counter + 1, total), fg='green'))
+            click.echo(click.style(' 3 - Timestamp       : {:%Y-%m-%d %H:%M:%S} UTC'.format(device.configs[counter].timestamp), fg='red'))
+        else:
+            click.echo(click.style(' 2 - Config          : {} of {}'.format(counter, total), fg='red'))
+            click.echo(click.style(' 3 - Timestamp       :', fg='red'))
+        print('==============================================')
+        if total > 0:
+            print('<V> - View Config, <C> - Compare Latest Configs, <N> - Next, <P> - Previous, <D> - Delete Config, <Q> - Quit')
+            print('')
+        else:
+            print('\nThere are no remaining configs.\n')
+            click.pause()
+            return None
+
+        choice = click.prompt('What would you like to do').upper()
+
+        if choice == 'Q':
+            return None
+        elif choice == 'N':
+            counter += 1
+            counter %= total
+        elif choice == 'P':
+            if counter > 0:
+                counter -= 1
+            else:
+                counter = total - 1
+        elif choice == 'D':
+            if verbose:
+                msg = 'Config {} deleted from device {}.'.format(counter,device.device_id)
+                generate_log(logfile, msg, 'INFO')
+            db.delete_config(device.configs[counter])
+            if counter > 0:
+                counter -= 1
+        elif choice == 'V' or choice == '2':
+            click.echo_via_pager(device.configs[counter].config)
+        elif choice == 'C':
+            if total >= 2:
+                difference = []
+                for line in udiff(device.configs[0].config.split('\n'), device.configs[1].config.split('\n'),\
+                        fromfile='{:%Y-%m-%d %H:%M:%S} UTC'.format(device.configs[0].timestamp),\
+                        tofile='{:%Y-%m-%d %H:%M:%S} UTC'.format(device.configs[1].timestamp)):
+                    difference.append(line)
+                click.echo_via_pager('\n'.join(difference))
+            else:
+                print('\nNot enough configs to compare.\n')
+                click.pause()
         else:
             print('\nInvalid Entry\n')
             click.pause()

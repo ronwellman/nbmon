@@ -30,7 +30,7 @@ from utils.util import *
 @click.option('--inputfile', '-f', help='load database via json formatted file',type=click.File('r'))
 @click.option('--clear', '-c', help='clear counters', is_flag=True)
 @click.option('--edit', '-e', help='edit the database', is_flag=True)
-@click.option('--logfile', '-l', help='use a custom log file',type=click.File('w'), default=sys.stdout)
+@click.option('--logfile', '-l', help='use a custom log file',type=click.File('a'), default=sys.stdout)
 @click.option('--verbose', '-v', help='enable verbose logging', is_flag=True)
 def cli(daemon, status, inputfile, clear, edit, logfile, verbose):
     '''
